@@ -13,9 +13,9 @@ Primitive pack-family procedures:
 (pack-sint PORT value)
 (pack-float PORT FLONUM)
 (pack-double PORT FLONUM)
-(pack-raw PORT BYTE-BLOB)
-(pack-array PORT VECTOR)
-(pack-map PORT HASH-TABLE)
+(pack-raw PORT BYTE-BLOB)  ; byte-blob
+(pack-array PORT VECTOR)   ; vector
+(pack-map PORT HASH-TABLE) ; hash-table
 ```
 
 Additionally, this implementation provides a generic pack procedure:
