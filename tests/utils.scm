@@ -25,6 +25,7 @@
 
 (use test)
 (use random-bsd)
+(use byte-blob)
 
 (define (empty-string? s)
   (string=? s ""))

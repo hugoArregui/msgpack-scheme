@@ -23,9 +23,12 @@
 ;;  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-(load "msgpack.scm")
+(load "msgpack-imple.scm")
 (load "tests/utils.scm")
+
+(use msgpack-imple)
+(use byte-blob)
+(use numbers)
 
 (define fast/full 'fast) ; some tests are slow
 
@@ -122,17 +125,6 @@
                         (if (eq? fast/full 'full)
                           (pack/unpack-test "map32" (make-rnd-hash-table (expt 2 17)))))
             ); end pack/unpack-test
-
-;(test-group "mapper"
-
-;(read-uint port size #!optional (mapper identity))
-;(read-sint port size #!optional (mapper identity))
-;(read-float port #!optional (mapper identity))
-;(read-map port size #!optional (mapper identity)) 
-;(read-array port size #!optional (mapper identity)) 
-;(read-double port #!optional (mapper identity)) 
-;(read-raw port size #!optional (mapper identity))
-  
 
 (test-group "limits"
             (define (fake-pack value)
