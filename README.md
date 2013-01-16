@@ -1,28 +1,50 @@
-# MessagePack for Scheme
+MessagePack for Scheme
+======================
 
 An implementation of [MessagePack](http://msgpack.org/) for Scheme.
 
-## Specification
+API Specification
+-----------------
 
-pack procedures
+Primitive pack-family procedures:
 
 ```scheme
-(pack-uint port value)
-(pack-sint port value)
-(pack-float port value)
-(pack-double port value)
-(pack-raw port value)
-(pack-array port value)
-(pack-map port value)
-(pack port value)
+(pack-uint PORT value)
+(pack-sint PORT value)
+(pack-float PORT FLONUM)
+(pack-double PORT FLONUM)
+(pack-raw PORT BYTE-BLOB)
+(pack-array PORT VECTOR)
+(pack-map PORT HASH-TABLE)
 ```
 
-mappers
+Additionally, this implementation provides a generic pack procedure:
+
 ```scheme
-(raw->string/mapper e)
+(pack PORT value)
 ```
 
-unpack procedures
+This procedure will call primitive type packers, with the following rules:
+
+- if the value has a packer, apply it.
+- if the value is a string, it will be packed as raw.
+- if the value is a blob, it will be packed as raw.
+- if the value is a char, it will be packed as a uint.
+- if the value is a list, it will be packed as an array.
+
+Unpack procedures:
+
 ```scheme
-(unpack port #!optional (mapper identity))
+(unpack PORT [mapper])
 ```
+
+Mappers:
+
+```scheme
+(raw->string/mapper value)
+```
+
+License
+-------
+
+Distributed under the New BSD License.
