@@ -1,0 +1,10 @@
+(
+(license "BSD")
+
+(category parsing)
+
+(needs byte-blob endian-blob numbers)
+
+(author "Hugo Arregui")
+(synopsis "MessagePack implementation for scheme")
+(test-depends test))

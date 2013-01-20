@@ -23,12 +23,11 @@
 ;;  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-(load "msgpack-imple.scm")
-(load "tests/utils.scm")
+;(load "msgpack-imple.scm")
+;(load "tests/utils.scm")
 
+(use test numbers byte-blob)
 (use msgpack-imple)
-(use byte-blob)
-(use numbers)
 
 (define fast/full 'fast) ; some tests are slow
 

@@ -1,0 +1,9 @@
+(compile -s -O2 -d1 msgpack-imple.scm -j msgpack-imple)
+(compile -s msgpack-imple.import.scm -O2 -d0)
+(compile -s -O2 -d1 msgpack.scm -j msgpack)
+(compile -s msgpack.import.scm -O2 -d0)
+
+(install-extension
+  'msgpack
+  '("msgpack.so" "msgpack.import.so" "msgpack-imple.so" "msgpack-imple.import.so")
+  '((version "1.0")))
