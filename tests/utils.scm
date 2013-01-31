@@ -76,3 +76,14 @@
 
 (current-test-comparator (build-test-equals? (current-test-comparator)))
 
+(define-syntax with-mocks 
+  (syntax-rules ()
+    ((with-mocks ((name value) . rest) body ...)
+     (let ((original name)) 
+       (set! name value)
+       (let ((r (with-mocks rest body ...)))
+         (set! name original)
+         r)))
+    ((with-mocks () body ...)
+     (let ()
+       body ...))))
