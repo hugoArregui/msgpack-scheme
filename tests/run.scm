@@ -24,8 +24,8 @@
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (declare (not standard-bindings vector-length))
+(include "msgpack.scm")
 (use test byte-blob numbers)
-(use msgpack-imple)
 
 (define fast/full 'fast) ; some tests are slow
 
@@ -216,9 +216,8 @@
                                     (test-assert "fixed array min" (fixed-array? (array-packed-header 0)))
                                     (test-assert "fixed array max" (fixed-array? (array-packed-header fixed_array_limit)))
                                     (test-array-limit 'array16 (+ 1 fixed_array_limit) array16_limit)
-                                    ))
-                                    ;(test-array-limit 'array32 (+ 1 array16_limit) array32_limit)
-                                    ;(test-struct-out-of-limit vector-length array32_limit '#())))
+                                    (test-array-limit 'array32 (+ 1 array16_limit) array32_limit)
+                                    (test-struct-out-of-limit vector-length array32_limit '#())))
 
             (test-group "map"
                         (define (test-map-limit type min max)
