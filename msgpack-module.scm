@@ -30,7 +30,7 @@
          pack pack-uint pack-sint pack-float pack-double pack-raw pack-array pack-map
          unpack 
          raw->string/mapper)
-        (import scheme chicken srfi-69 byte-blob numbers extras srfi-4 foreign data-structures)
+        (import scheme chicken data-structures extras foreign)
         (require-library srfi-69 byte-blob numbers)
         (include "msgpack.scm")
 ); end modulue

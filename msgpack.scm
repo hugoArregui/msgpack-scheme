@@ -25,7 +25,7 @@
 ;;  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-(use byte-blob numbers)
+(use srfi-69 byte-blob numbers)
 (include "flonum-utils.scm")
 
 ;; limits
