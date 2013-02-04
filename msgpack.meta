@@ -3,8 +3,8 @@
 
 (category parsing)
 
-(needs byte-blob endian-blob numbers)
+(needs byte-blob numbers blob-utils bind)
 
 (author "Hugo Arregui")
 (synopsis "MessagePack implementation for scheme")
-(test-depends test))
+(test-depends test random-bsd byte-blob numbers))

@@ -8,7 +8,8 @@ module: clean
 test : clean
 
 	csc -c tests/utils.scm
-	csc -X bind -c++ tests/utils.o tests/run.scm -o run 
+	csc -X bind -c++ tests/utils.o tests/tests.scm -o tests/run 
+	cd tests && ./run
 
 clean :
 
