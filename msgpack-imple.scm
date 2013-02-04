@@ -25,10 +25,8 @@
 ;;  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-(module msgpack-imple
-        *
-        (import scheme chicken srfi-69 endian-blob byte-blob numbers extras srfi-4)
-        (require-library srfi-69 endian-blob byte-blob numbers)
+(use srfi-69 byte-blob numbers)
+(include "flonum-utils.scm")
 
 ;; limits
 (define fixed_uint_limit 127)
@@ -53,8 +51,8 @@
 
 ;; constants
 (define constants '((()      . #xc0)
-                    (#t      . #xc3)
-                    (#f      . #xc2)
+                    (#t      . #xc3) 
+                    (#f      . #xc2) 
                     (uint8   . #xcc)
                     (uint16  . #xcd)
                     (uint32  . #xce)
@@ -72,26 +70,23 @@
                     (map16   . #xde)
                     (map32   . #xdf)))
 
-(define (identity x)
-  x)
-
 (define constant-repr-map (alist->hash-table constants))
 (define repr-constant-map 
-  (alist->hash-table (map (lambda (entry) 
-                            (cons (cdr entry) (car entry))) constants)))
+(alist->hash-table (map (lambda (entry) 
+                          (cons (cdr entry) (car entry))) constants)))
 
 (define (read-byte/eof-error port)
-  (let ((b (read-byte port)))
-    (if (eof-object? b)
-      (error "premature eof")
-      b)))
+(let ((b (read-byte port)))
+  (if (eof-object? b)
+    (error "premature eof")
+    b)))
 
 ;; byte manipulation primitives
 (define (byte-complement2 n)
   (+ (- 255 n) 1))
 
 (define (get-smallest-byte n)
-   (bitwise-and #xff n))
+  (bitwise-and #xff n))
 
 (define (write-bytes port value size)
   (if (> size 0)
@@ -128,22 +123,16 @@
           1))))
 
 (define (write-float port value)
-  (let ((uint8_vector (endian-blob->u8vector (ieee_float32->endian-blob value))))
-    (write-raw port (blob->byte-blob 
-                 (u8vector->blob uint8_vector)) 4)))
+  (write-uint port (float->uint32 value) 4))
 
 (define (read-float port #!optional (mapper identity))
-  (mapper (endian-blob->ieee_float32
-            (byte-blob->endian-blob (read-raw port 4)))))
-
+  (mapper (byte-blob->float (byte-blob-reverse (read-raw port 4)))))
+       
 (define (write-double port value)
-  (let ((uint8_vector (endian-blob->u8vector (ieee_float64->endian-blob value))))
-    (write-raw port (blob->byte-blob 
-                 (u8vector->blob uint8_vector)) 8)))
+  (write-raw port (double->byte-blob value) 8))
 
 (define (read-double port #!optional (mapper identity)) 
-  (mapper (endian-blob->ieee_float64 
-            (byte-blob->endian-blob (read-raw port 8)))))
+  (mapper (byte-blob->double (byte-blob-reverse (read-raw port 8)))))
 
 (define (write-raw port blob size)
   (assert (byte-blob? blob))
@@ -156,7 +145,7 @@
 (define (read-raw port size #!optional (mapper identity))
   (let loop ((size size)
              (data (byte-blob-empty)))
-    (if (> size 0 )
+    (if (> size 0)
       (let ((byte (read-byte/eof-error port)))
         (loop (- size 1) (byte-blob-cons byte data)))
       (mapper (byte-blob-reverse data)))))
@@ -164,18 +153,16 @@
 (define (write-array port array size)
   (assert (= (vector-length array) size))
   (let loop ((index 0))
-    (if (< index size)
-      (let ()
-        (pack port (vector-ref array index))
-        (loop (+ index 1))))))
+    (when (< index size)
+      (pack port (vector-ref array index))
+      (loop (+ index 1)))))
 
 (define (read-array port size #!optional (mapper identity)) 
   (define array (make-vector size))
   (let loop ((index 0))
-    (if (< index size)
-      (let ()
-        (vector-set! array index (unpack port mapper))
-        (loop (+ index 1)))))
+    (when (< index size)
+      (vector-set! array index (unpack port mapper))
+      (loop (+ index 1))))
   (mapper array))
 
 (define (write-map port value size)
@@ -209,61 +196,55 @@
 (define (fixed-map? value)
   (= (bitwise-and #xf0 value) #x80))
 
+(define (write-header port type)
+  (let ((header (hash-table-ref constant-repr-map type)))
+    (write-byte header port)))
+
 (define (pack-uint port value)
   (cond ((<= value fixed_uint_limit)
          (let ((header (bitwise-and value #x7f)))
            (write-byte header port)))
         ((<= value uint8_limit)
-         (let ((header (hash-table-ref constant-repr-map 'uint8)))
-           (write-byte header port)
-           (write-uint port value 1)))
+         (write-header port 'uint8)
+         (write-uint port value 1))
         ((<= value uint16_limit)
-         (let ((header (hash-table-ref constant-repr-map 'uint16)))
-           (write-byte header port)
-           (write-uint port value 2)))
+         (write-header port 'uint16)
+         (write-uint port value 2))
         ((<= value uint32_limit)
-         (let ((header (hash-table-ref constant-repr-map 'uint32)))
-           (write-byte header port)
-           (write-uint port value 4)))
+         (write-header port 'uint32)
+         (write-uint port value 4))
         ((<= value uint64_limit)
-         (let ((header (hash-table-ref constant-repr-map 'uint64)))
-           (write-byte header port)
-           (write-uint port value 8)))
+         (write-header port 'uint64)
+         (write-uint port value 8))
         (#t
          (out-of-limit-error 'uint value))))
-        
+
 (define (pack-sint port value)
   (cond ((>= value fixed_int_limit)
          (let ((header (bitwise-ior #xe0 (get-smallest-byte value))))
            (write-byte header port)))
         ((>= value int8_limit)
-         (let ((header (hash-table-ref constant-repr-map 'int8)))
-           (write-byte header port)
-           (write-sint port value 1)))
+         (write-header port 'int8)
+         (write-sint port value 1))
         ((>= value int16_limit)
-         (let ((header (hash-table-ref constant-repr-map 'int16)))
-           (write-byte header port)
-           (write-sint port value 2)))
+         (write-header port 'int16)
+         (write-sint port value 2))
         ((>= value int32_limit)
-         (let ((header (hash-table-ref constant-repr-map 'int32)))
-           (write-byte header port)
-           (write-sint port value 4)))
+         (write-header port 'int32)
+         (write-sint port value 4))
         ((>= value int64_limit)
-         (let ((header (hash-table-ref constant-repr-map 'int64)))
-           (write-byte header port)
-           (write-sint port value 8)))
+         (write-header port 'int64)
+         (write-sint port value 8))
         (#t
          (out-of-limit-error 'sint value))))
 
 (define (pack-float port value)
-  (let* ((header (hash-table-ref constant-repr-map 'float)))
-    (write-byte header port)
-    (write-float port value)))
+  (write-header port 'float)
+  (write-float port value))
 
 (define (pack-double port value)
-  (let* ((header (hash-table-ref constant-repr-map 'double)))
-    (write-byte header port)
-    (write-double port value)))
+  (write-header port 'double)
+  (write-double port value))
 
 (define (pack-raw port value)
   (assert (byte-blob? value))
@@ -275,17 +256,15 @@
              (write-byte header port)
              (write-raw port value size)))
           ((<= size raw16_limit)
-           (let ((header (hash-table-ref constant-repr-map 'raw16)))
-             (write-byte header port)
-             (write-uint port size 2)
-             (write-raw port value size)))
+           (write-header port 'raw16)
+           (write-uint port size 2)
+           (write-raw port value size))
           ((<= size raw32_limit)
-           (let ((header (hash-table-ref constant-repr-map 'raw32)))
-             (write-byte header port)
-             (write-uint port size 4)
-             (write-raw port value size)))
+           (write-header port 'raw32)
+           (write-uint port size 4)
+           (write-raw port value size))
           (#t
-             (out-of-limit-error 'raw value)))))
+           (out-of-limit-error 'raw value)))))
 
 (define (pack-array port value)
   (let ((size (vector-length value)))
@@ -294,17 +273,15 @@
              (write-byte header port)
              (write-array port value size)))
           ((<= size array16_limit)
-           (let ((header (hash-table-ref constant-repr-map 'array16)))
-             (write-byte header port)
-             (write-uint port size 2)
-             (write-array port value size)))
+           (write-header port 'array16)
+           (write-uint port size 2)
+           (write-array port value size))
           ((<= size array32_limit)
-           (let ((header (hash-table-ref constant-repr-map 'array32)))
-             (write-byte header port)
-             (write-uint port size 4)
-             (write-array port value size)))
+           (write-header port 'array32)
+           (write-uint port size 4)
+           (write-array port value size))
           (#t
-             (out-of-limit-error 'array value)))))
+           (out-of-limit-error 'array value)))))
 
 (define (pack-map port value)
   (let ((size (hash-table-size value)))
@@ -313,22 +290,20 @@
              (write-byte header port)
              (write-map port value size)))
           ((<= size map16_limit)
-           (let ((header (hash-table-ref constant-repr-map 'map16)))
-             (write-byte header port)
-             (write-uint port size 2)
-             (write-map port value size)))
+           (write-header port 'map16)
+           (write-uint port size 2)
+           (write-map port value size))
           ((<= size map32_limit)
-           (let ((header (hash-table-ref constant-repr-map 'map32)))
-             (write-byte header port)
-             (write-uint port size 4)
-             (write-map port value size)))
+           (write-header port 'map32)
+           (write-uint port size 4)
+           (write-map port value size))
           (#t
-             (out-of-limit-error 'map value)))))
+           (out-of-limit-error 'map value)))))
 
 (define (pack port value)
   (let ((repr/or-false (hash-table-ref/default constant-repr-map value #f)))
     (cond (repr/or-false
-           (write-byte repr/or-false port))
+            (write-byte repr/or-false port))
           ((char? value)
            (pack-uint port (char->integer value)))
           ((integer? value)
@@ -355,7 +330,7 @@
 (define (raw->string/mapper e)
   (if (byte-blob? e)
     (byte-blob->string e)
-     e))
+    e))
 
 (define (unpack port #!optional (mapper identity))
   (let ((value (read-byte port)))
@@ -418,4 +393,3 @@
                (read-map port size mapper)))
             (#t
              (error 'unpack "cannot unpack" value))))))
-); end module

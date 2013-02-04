@@ -25,12 +25,12 @@
 ;;  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-(load "msgpack-imple.scm")
-
 (module msgpack
         (;export 
          pack pack-uint pack-sint pack-float pack-double pack-raw pack-array pack-map
          unpack 
          raw->string/mapper)
-        (import msgpack-imple)
+        (import scheme chicken data-structures extras foreign)
+        (require-library srfi-69 byte-blob numbers)
+        (include "msgpack-imple.scm")
 ); end modulue

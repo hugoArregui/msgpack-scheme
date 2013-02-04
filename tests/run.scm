@@ -23,21 +23,35 @@
 ;;  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-;(load "msgpack-imple.scm")
-;(load "tests/utils.scm")
-
-(use test numbers byte-blob)
-(use msgpack-imple)
+(declare (not standard-bindings vector-length))
+(include "msgpack.scm")
+(use test byte-blob numbers)
 
 (define fast/full 'fast) ; some tests are slow
+
+(define-syntax with-mocks 
+  (syntax-rules ()
+    ((with-mocks ((name value) . rest) body ...)
+     (let ((original name)) 
+       (set! name value)
+       (let ((r (with-mocks rest body ...)))
+         (set! name original)
+         r)))
+    ((with-mocks () body ...)
+     (let ()
+       body ...))))
+
 
 (test-group "read-byte/eof-error"
             (test "ok" 97 (call-with-input-string "a" read-byte/eof-error))
             (test-error "eof" (call-with-input-string "" read-byte/eof-error)))
 
 (test-group "pack/unpack"
+						(define (string-pack value)
+              (call-with-output-string (cut pack <> value)))
+
             (define (pack/unpack value #!optional (mapper identity))
-              (let* ((packed-buffer (call-with-output-string (cut pack <> value))))
+              (let* ((packed-buffer (string-pack value)))
                 (call-with-input-string packed-buffer (cut unpack <> mapper))))
 
             (define (pack/unpack-test name value #!optional (mapper identity) (packer pack))
@@ -56,6 +70,7 @@
                                           (let ((v (unpack port mapper)))
                                             (test name v (mapper value))
                                             v)))))
+
             (test-group "constants"
                         (let ((mapper (lambda (x) (not x))))
                           (mapper-test "constant mapper" #f mapper))
@@ -81,7 +96,7 @@
                           (mapper-test "float32 mapper" v mapper pack-float)
                           (mapper-test "double64 mapper" v mapper))
                         (pack/unpack-test "float32" 1.3 identity pack-float)
-                        (pack/unpack-test "double64" 1.3))
+												(pack/unpack-test "double64" 1.3))
 
             (test-group "sint"
                         (let ((mapper (lambda (x) (+ x 1)))
@@ -139,23 +154,20 @@
               (test-header (string-append (symbol->string type) " min") min type)
               (test-header (string-append (symbol->string type) " max") max type))
 
-            (define (test-struct-limit type size-mocker restorer value min max)
-              (size-mocker min)
-              (test-header (string-append (symbol->string type) " min") value type)
-              (size-mocker max)
-              (test-header (string-append (symbol->string type) " max") value type)
-              (restorer))
+            (define-syntax test-struct-limit
+              (syntax-rules ()
+                ((test-struct-limit size_proc_name type value min max)
+                 (let ()
+                   (with-mocks ((size_proc_name (lambda (e) min)))
+                               (test-header (string-append (symbol->string type) " min") value type))
+                   (with-mocks ((size_proc_name (lambda (e) max)))
+                               (test-header (string-append (symbol->string type) " max") value type))))))
 
-            (define (test-struct-out-of-limit size-mocker restorer value limit)
-              (size-mocker (+ limit 1))
-              (test-error "out of limit" (fake-pack value))
-              (restorer))
-
-            (define (struct-packed-header mocker restorer value size)
-              (mocker size)
-              (let ((header (packed-header value)))
-                (restorer)
-                header))
+            (define-syntax test-struct-out-of-limit
+              (syntax-rules ()
+                ((test-struct-out-of-limit size_proc_name limit value)
+                 (with-mocks ((size_proc_name (lambda (x) (+ limit 1))))
+                             (test-error "out of limit" (fake-pack value))))))
 
             (test-group "uint"
                         (test-assert "fixed uint min" (fixed-uint? (packed-header 0)))
@@ -176,63 +188,50 @@
                         (test-error "out of limit" (fake-pack (- int64_limit 1))))
 
             (test-group "raw"
-                        (let* ((raw (byte-blob-empty))
-                               (restorer (let ((len_original byte-blob-length)
-                                               (write_original write-raw))
-                                           (lambda ()
-                                             (set! write-raw write_original)
-                                             (set! byte-blob-length len_original))))
-                               (mocker (lambda (size)
-                                         (set! write-raw (lambda (port value size) #t))
-                                         (set! byte-blob-length (lambda (e) size))))
-                               (raw-packed-header (lambda (size)
-                                                    (struct-packed-header mocker restorer raw size)))
-                               (test-raw-limit (lambda (type min max)
-                                                 (test-struct-limit type mocker restorer raw min max))))
-                          (test-assert "empty" (empty-string? (call-with-output-string (cut pack <> raw))))
-                          (test-assert "fixed raw min" (fixed-raw? (raw-packed-header 1)))
-                          (test-assert "fixed raw max" (fixed-raw? (raw-packed-header fixed_raw_limit)))
-                          (test-raw-limit 'raw16 (+ 1 fixed_raw_limit) raw16_limit)
-                          (test-raw-limit 'raw32 (+ 1 raw16_limit) raw32_limit)
-                          (test-struct-out-of-limit mocker restorer raw raw32_limit)))
+                        (define (test-raw-limit type min max)
+                          (test-struct-limit byte-blob-length type (byte-blob-empty) min max))
+
+                        (define (raw-packed-header size)
+                          (with-mocks ((byte-blob-length (lambda (e) size)))
+                                      (packed-header (byte-blob-empty))))
+
+                        (with-mocks ((write-raw (lambda (port value size) #t)))
+                                    (test-assert "empty" (empty-string? (call-with-output-string 
+                                                                          (cut pack <> (byte-blob-empty)))))
+                                    (test-assert "fixed raw min" (fixed-raw? (raw-packed-header 1)))
+                                    (test-assert "fixed raw max" (fixed-raw? (raw-packed-header fixed_raw_limit)))
+                                    (test-raw-limit 'raw16 (+ 1 fixed_raw_limit) raw16_limit)
+                                    (test-raw-limit 'raw32 (+ 1 raw16_limit) raw32_limit)
+                                    (test-struct-out-of-limit byte-blob-length raw32_limit (byte-blob-empty))))
 
             (test-group "array"
-                        (let* ((array '#())
-                               (restorer (let ((len_original vector-length)
-                                               (write_original write-array))
-                                           (lambda ()
-                                             (set! write-array write_original)
-                                             (set! vector-length len_original))))
-                               (mocker (lambda (size)
-                                         (set! write-array (lambda (port value size) #t))
-                                         (set! vector-length (lambda (e) size))))
-                               (array-packed-header (lambda (size)
-                                                    (struct-packed-header mocker restorer array size)))
-                               (test-array-limit (lambda (type min max)
-                                                 (test-struct-limit type mocker restorer array min max))))
-                          (test-assert "fixed array min" (fixed-array? (array-packed-header 0)))
-                          (test-assert "fixed array max" (fixed-array? (array-packed-header fixed_array_limit)))
-                          (test-array-limit 'array16 (+ 1 fixed_array_limit) array16_limit)
-                          (test-array-limit 'array32 (+ 1 array16_limit) array32_limit)
-                          (test-struct-out-of-limit mocker restorer array array32_limit)))
+                        (define (test-array-limit type min max)
+                          (test-struct-limit vector-length type '#() min max))
+
+                        (define (array-packed-header size)
+                          (with-mocks ((vector-length (lambda (e) size)))
+                                      (packed-header '#())))
+
+                        (with-mocks ((write-array (lambda (port value size) #t)))
+                                    (test-assert "fixed array min" (fixed-array? (array-packed-header 0)))
+                                    (test-assert "fixed array max" (fixed-array? (array-packed-header fixed_array_limit)))
+                                    (test-array-limit 'array16 (+ 1 fixed_array_limit) array16_limit)
+                                    (test-array-limit 'array32 (+ 1 array16_limit) array32_limit)
+                                    (test-struct-out-of-limit vector-length array32_limit '#())))
 
             (test-group "map"
-                        (let* ((table (make-hash-table))
-                               (restorer (let ((original hash-table-size))
-                                           (lambda ()
-                                             (set! hash-table-size original))))
-                               (mocker (lambda (size)
-                                         (set! hash-table-size (lambda (e) size))))
-                               (map-packed-header (lambda (size)
-                                                    (struct-packed-header mocker restorer table size)))
-                               (test-map-limit (lambda (type min max)
-                                                 (test-struct-limit type mocker restorer table min max))))
-                          (test-assert "fixed map min" (fixed-map? (map-packed-header 0)))
-                          (test-assert "fixed map max" (fixed-map? (map-packed-header fixed_map_limit)))
-                          (test-map-limit 'map16 (+ 1 fixed_map_limit) map16_limit)
-                          (test-map-limit 'map32 (+ 1 map16_limit) map32_limit)
-                          (test-struct-out-of-limit mocker restorer table map32_limit)))
-            ); end limits test
+                        (define (test-map-limit type min max)
+                          (test-struct-limit hash-table-size type (make-hash-table) min max))
+
+                        (define (map-packed-header size)
+                          (with-mocks ((hash-table-size (lambda (e) size)))
+                                      (packed-header (make-hash-table))))
+
+                        (test-assert "fixed map min" (fixed-map? (map-packed-header 0)))
+                        (test-assert "fixed map max" (fixed-map? (map-packed-header fixed_map_limit)))
+                        (test-map-limit 'map16 (+ 1 fixed_map_limit) map16_limit)
+                        (test-map-limit 'map32 (+ 1 map16_limit) map32_limit)
+                        (test-struct-out-of-limit hash-table-size map32_limit (make-hash-table)))
+            ) ;end limits test
 
 (test-exit)
-
