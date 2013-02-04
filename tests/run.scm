@@ -24,7 +24,7 @@
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (declare (not standard-bindings vector-length))
-(include "msgpack.scm")
+(include "msgpack-imple.scm")
 (use test byte-blob numbers)
 
 (define fast/full 'fast) ; some tests are slow
