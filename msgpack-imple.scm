@@ -25,10 +25,17 @@
 ;;  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+;TODO: se puede usar limits para sacar algunas de mis constantes?
+;TODO: para esto juntar todo en una compilation unit, sacando el modulo e incluyendo tanto para test como para def
+;msgpack-imple -> msgpack
+;msgpack -> msgpack-module
+(declare (not standard-bindings vector-length))
 (module msgpack-imple
         *
-        (import scheme chicken srfi-69 endian-blob byte-blob numbers extras srfi-4)
-        (require-library srfi-69 endian-blob byte-blob numbers)
+        (import scheme chicken srfi-69 byte-blob numbers extras srfi-4 foreign)
+        (require-library srfi-69 byte-blob numbers)
+
+        (include "flonum-utils.scm")
 
 ;; limits
 (define fixed_uint_limit 127)
@@ -53,9 +60,7 @@
 
 ;; constants
 (define constants '((()      . #xc0)
-                    (#t      . #xc3)
-                    (#f      . #xc2)
-                    (uint8   . #xcc)
+                    (#t      . #xc3) (#f      . #xc2) (uint8   . #xcc)
                     (uint16  . #xcd)
                     (uint32  . #xce)
                     (uint64  . #xcf)
@@ -128,22 +133,16 @@
           1))))
 
 (define (write-float port value)
-  (let ((uint8_vector (endian-blob->u8vector (ieee_float32->endian-blob value))))
-    (write-raw port (blob->byte-blob 
-                 (u8vector->blob uint8_vector)) 4)))
+  (write-uint port (float->uint32 value) 4))
 
 (define (read-float port #!optional (mapper identity))
-  (mapper (endian-blob->ieee_float32
-            (byte-blob->endian-blob (read-raw port 4)))))
-
+  (mapper (byte-blob->float (byte-blob-reverse (read-raw port 4)))))
+         
 (define (write-double port value)
-  (let ((uint8_vector (endian-blob->u8vector (ieee_float64->endian-blob value))))
-    (write-raw port (blob->byte-blob 
-                 (u8vector->blob uint8_vector)) 8)))
+  (write-raw port (double->byte-blob value) 8))
 
 (define (read-double port #!optional (mapper identity)) 
-  (mapper (endian-blob->ieee_float64 
-            (byte-blob->endian-blob (read-raw port 8)))))
+  (mapper (byte-blob->double (byte-blob-reverse (read-raw port 8)))))
 
 (define (write-raw port blob size)
   (assert (byte-blob? blob))

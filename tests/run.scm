@@ -23,22 +23,35 @@
 ;;  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-(load "msgpack-imple.scm")
-(load "tests/utils.scm")
-
+(declare (not standard-bindings vector-length))
+(use test byte-blob numbers)
 (use msgpack-imple)
-(use byte-blob)
-(use numbers)
 
 (define fast/full 'fast) ; some tests are slow
+
+(define-syntax with-mocks 
+  (syntax-rules ()
+    ((with-mocks ((name value) . rest) body ...)
+     (let ((original name)) 
+       (set! name value)
+       (let ((r (with-mocks rest body ...)))
+         (set! name original)
+         r)))
+    ((with-mocks () body ...)
+     (let ()
+       body ...))))
+
 
 (test-group "read-byte/eof-error"
             (test "ok" 97 (call-with-input-string "a" read-byte/eof-error))
             (test-error "eof" (call-with-input-string "" read-byte/eof-error)))
 
 (test-group "pack/unpack"
+						(define (string-pack value)
+              (call-with-output-string (cut pack <> value)))
+
             (define (pack/unpack value #!optional (mapper identity))
-              (let* ((packed-buffer (call-with-output-string (cut pack <> value))))
+              (let* ((packed-buffer (string-pack value)))
                 (call-with-input-string packed-buffer (cut unpack <> mapper))))
 
             (define (pack/unpack-test name value #!optional (mapper identity) (packer pack))
@@ -57,6 +70,7 @@
                                           (let ((v (unpack port mapper)))
                                             (test name v (mapper value))
                                             v)))))
+
             (test-group "constants"
                         (let ((mapper (lambda (x) (not x))))
                           (mapper-test "constant mapper" #f mapper))
@@ -82,7 +96,7 @@
                           (mapper-test "float32 mapper" v mapper pack-float)
                           (mapper-test "double64 mapper" v mapper))
                         (pack/unpack-test "float32" 1.3 identity pack-float)
-                        (pack/unpack-test "double64" 1.3))
+												(pack/unpack-test "double64" 1.3))
 
             (test-group "sint"
                         (let ((mapper (lambda (x) (+ x 1)))
@@ -202,8 +216,9 @@
                                     (test-assert "fixed array min" (fixed-array? (array-packed-header 0)))
                                     (test-assert "fixed array max" (fixed-array? (array-packed-header fixed_array_limit)))
                                     (test-array-limit 'array16 (+ 1 fixed_array_limit) array16_limit)
-                                    (test-array-limit 'array32 (+ 1 array16_limit) array32_limit)
-                                    (test-struct-out-of-limit vector-length array32_limit '#())))
+                                    ))
+                                    ;(test-array-limit 'array32 (+ 1 array16_limit) array32_limit)
+                                    ;(test-struct-out-of-limit vector-length array32_limit '#())))
 
             (test-group "map"
                         (define (test-map-limit type min max)
@@ -218,7 +233,6 @@
                         (test-map-limit 'map16 (+ 1 fixed_map_limit) map16_limit)
                         (test-map-limit 'map32 (+ 1 map16_limit) map32_limit)
                         (test-struct-out-of-limit hash-table-size map32_limit (make-hash-table)))
-            ); end limits test
+            ) ;end limits test
 
 (test-exit)
-
