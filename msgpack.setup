@@ -6,4 +6,4 @@
 (install-extension
   'msgpack
   '("msgpack.so" "msgpack.import.so")
-  '((version "1.0")))
+  '((version "0.1")))
