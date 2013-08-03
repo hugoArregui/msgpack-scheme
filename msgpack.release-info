@@ -1,3 +1,3 @@
 (repo git "git://github.com/hugoArregui/msgpack-scheme.git")
 (uri targz "https://github.com/hugoArregui/msgpack-scheme/archive/{egg-release}.tar.gz")
-(release "0.1")
+(release "0.2")

@@ -24,6 +24,5 @@
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (use setup-api)
-(compile -c utils.scm)
-(compile -X bind -c++ utils.o tests.scm -o run -I ..)
+(compile -X bind -c++ tests.scm -o run -I ..)
 (run (./run))

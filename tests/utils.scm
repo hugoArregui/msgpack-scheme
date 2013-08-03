@@ -23,11 +23,7 @@
 ;;  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-(declare (unit utils))
-
-(use test)
-(use random-bsd)
-(use byte-blob)
+(use test random-bsd byte-blob)
 
 (define (empty-string? s)
   (string=? s ""))
