@@ -1,0 +1,7 @@
+language: C
+install:
+  - sudo apt-get install chicken-bin
+script: 
+  - chicken -version
+  - chicken-install -s -test
+
