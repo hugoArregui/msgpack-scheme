@@ -3,7 +3,7 @@
 
 (category parsing)
 
-(needs byte-blob numbers blob-utils bind)
+(needs byte-blob numbers blob-utils bind matchable)
 
 (author "Hugo Arregui")
 (synopsis "MessagePack implementation for scheme")
