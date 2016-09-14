@@ -2,7 +2,7 @@
 ;;
 ;;  Copyright (c) 2013, Hugo Arregui
 ;;  All rights reserved.
-;;  
+;;
 ;;  Redistribution and use in source and binary forms, with or without
 ;;  modification, are permitted provided that the following conditions
 ;;  are met:
@@ -13,7 +13,7 @@
 ;;     documentation and/or other materials provided with the distribution.
 ;;  3. The name of the authors may not be used to endorse or promote products
 ;;     derived from this software without specific prior written permission.
-;;  
+;;
 ;;  THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
 ;;  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
 ;;  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
@@ -26,10 +26,12 @@
 ;;  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (module msgpack
-        (;export 
-         pack pack-uint pack-sint pack-float pack-double pack-raw pack-array pack-map
-         unpack 
-         raw->string/mapper)
+        (;export
+         pack
+         pack-uint pack-sint
+         pack-float pack-double
+         pack-str pack-bin pack-array pack-map pack-ext
+         unpack)
         (import scheme chicken data-structures extras foreign)
         (require-library srfi-69 byte-blob numbers)
         (include "msgpack-imple.scm")

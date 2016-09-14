@@ -5,13 +5,17 @@ module: clean
 	csc -X bind -c++ -s -j msgpack -o msgpack.so msgpack.scm
 	csc msgpack.import.scm -dynamic
 
-test : clean
+test: clean
 
-	csc -c tests/utils.scm
-	csc -X bind -c++ tests/utils.o tests/tests.scm -o run 
+	csc -X bind -c++ -I tests/ tests/tests.scm -o run
 	./run
 
-clean :
+test-python-ref: clean
 
-	rm -f tests/*.o *.o run *.c tests/*.c *.so msgpack.import.scm
+	chicken-install -s
+	python tests/python-ref.py
+	csi -s tests/python-ref-tests.scm
 
+clean:
+
+	rm -f tests/*.o *.o run *.c tests/*.c *.so msgpack.import.scm tests/python-ref-tests.scm tests/run
