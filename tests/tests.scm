@@ -144,11 +144,11 @@
   ); end pack/unpack-test
 
 (test-group "limits"
-  (define (fake-pack value)
+  (define (pack/as-blob value)
     (string->byte-blob (call-with-output-string (cut pack <> value))))
 
   (define (packed-header value)
-    (byte-blob-uref (fake-pack value) 0))
+    (byte-blob-uref (pack/as-blob value) 0))
 
   (define (test-header name value header)
     (test name (packed-header value) (hash-table-ref constant-repr-map header)))
@@ -157,20 +157,20 @@
     (test-header (string-append (symbol->string type) " min") min type)
     (test-header (string-append (symbol->string type) " max") max type))
 
-  (define-syntax test-struct-limit
+  (define-syntax test-container-limit
     (syntax-rules ()
-      ((test-struct-limit size_proc_name type value min max)
+      ((test-container-limit size_proc_name type value min max)
        (let ()
 	 (with-mocks ((size_proc_name (lambda (e) min)))
 		     (test-header (string-append (symbol->string type) " min") value type))
 	 (with-mocks ((size_proc_name (lambda (e) max)))
 		     (test-header (string-append (symbol->string type) " max") value type))))))
 
-  (define-syntax test-struct-out-of-limit
+  (define-syntax test-container-out-of-limit
     (syntax-rules ()
-      ((test-struct-out-of-limit size_proc_name limit value)
+      ((test-container-out-of-limit size_proc_name limit value)
        (with-mocks ((size_proc_name (lambda (x) (+ limit 1))))
-		   (test-error "out of limit" (fake-pack value))))))
+		   (test-error "out of limit" (pack/as-blob value))))))
 
   (test-group "uint"
     (test-assert "fixed uint min" (fixed-uint? (packed-header 0)))
@@ -179,7 +179,7 @@
     (test-limit 'uint16 (+ uint8_limit 1) uint16_limit)
     (test-limit 'uint32 (+ uint16_limit 1) uint32_limit)
     (test-limit 'uint64 (+ uint32_limit 1) uint64_limit)
-    (test-error "out of limit" (fake-pack (+ uint64_limit 1))))
+    (test-error "out of limit" (pack/as-blob (+ uint64_limit 1))))
 
   (test-group "sint"
     (test-assert "fixed sint min" (fixed-sint? (packed-header -1)))
@@ -188,66 +188,51 @@
     (test-limit 'int16 (- int8_limit 1) int16_limit)
     (test-limit 'int32 (- int16_limit 1) int32_limit)
     (test-limit 'int64 (- int32_limit 1) int64_limit)
-    (test-error "out of limit" (fake-pack (- int64_limit 1))))
+    (test-error "out of limit" (pack/as-blob (- int64_limit 1))))
 
   (test-group "bin"
     (define (test-bin-limit type min max)
-      (test-struct-limit byte-blob-length type (byte-blob-empty) min max))
-
-    (define (bin-packed-header size)
-      (with-mocks ((byte-blob-length (lambda (e) size)))
-		  (packed-header (byte-blob-empty))))
+      (test-container-limit byte-blob-length type (byte-blob-empty) min max))
 
     (with-mocks ((write-raw (lambda (port value size) #t)))
 		(test-bin-limit 'bin8  (+ 1 fixed_raw_limit) raw8_limit)
 		(test-bin-limit 'bin16 (+ 1 raw8_limit)      raw16_limit)
 		(test-bin-limit 'bin32 (+ 1 raw16_limit)     raw32_limit)
-		(test-struct-out-of-limit byte-blob-length raw32_limit (byte-blob-empty))))
+		(test-container-out-of-limit byte-blob-length raw32_limit (byte-blob-empty))))
 
   (test-group "str"
     (define (test-str-limit type min max)
-      (test-struct-limit byte-blob-length type "" min max))
-
-    (define (str-packed-header size)
-      (with-mocks ((byte-blob-length (lambda (e) size)))
-		  (packed-header "")))
+      (test-container-limit byte-blob-length type "" min max))
 
     (with-mocks ((write-raw (lambda (port value size) #t)))
-		(test-assert "fixed str min" (fixed-str? (str-packed-header 1)))
-		(test-assert "fixed str max" (fixed-str? (str-packed-header fixed_raw_limit)))
+		(test-assert "fixed str min" (fixed-str? (packed-header "")))
+		(test-assert "fixed str max" (fixed-str? (packed-header (make-string fixed_raw_limit))))
 		(test-str-limit 'str8  (+ 1 fixed_raw_limit) raw8_limit)
 		(test-str-limit 'str16 (+ 1 raw8_limit)      raw16_limit)
 		(test-str-limit 'str32 (+ 1 raw16_limit)     raw32_limit)
-		(test-struct-out-of-limit byte-blob-length raw32_limit (byte-blob-empty))))
+		(test-container-out-of-limit byte-blob-length raw32_limit (byte-blob-empty))))
 
   (test-group "array"
     (define (test-array-limit type min max)
-      (test-struct-limit vector-length type '#() min max))
-
-    (define (array-packed-header size)
-      (with-mocks ((vector-length (lambda (e) size)))
-		  (packed-header '#())))
+      (test-container-limit vector-length type '#() min max))
 
     (with-mocks ((write-array (lambda (port value size) #t)))
-		(test-assert "fixed array min" (fixed-array? (array-packed-header 0)))
-		(test-assert "fixed array max" (fixed-array? (array-packed-header fixed_array_limit)))
+		(test-assert "fixed array min" (fixed-array? (packed-header '#())))
+		(test-assert "fixed array max" (fixed-array? (packed-header (make-vector fixed_array_limit 1))))
 		(test-array-limit 'array16 (+ 1 fixed_array_limit) array16_limit)
 		(test-array-limit 'array32 (+ 1 array16_limit) array32_limit)
-		(test-struct-out-of-limit vector-length array32_limit '#())))
+		(test-container-out-of-limit vector-length array32_limit '#())))
 
   (test-group "map"
     (define (test-map-limit type min max)
-      (test-struct-limit hash-table-size type (make-hash-table) min max))
+      (test-container-limit hash-table-size type (make-hash-table) min max))
 
-    (define (map-packed-header size)
-      (with-mocks ((hash-table-size (lambda (e) size)))
-		  (packed-header (make-hash-table))))
-
-    (test-assert "fixed map min" (fixed-map? (map-packed-header 0)))
-    (test-assert "fixed map max" (fixed-map? (map-packed-header fixed_map_limit)))
-    (test-map-limit 'map16 (+ 1 fixed_map_limit) map16_limit)
-    (test-map-limit 'map32 (+ 1 map16_limit) map32_limit)
-    (test-struct-out-of-limit hash-table-size map32_limit (make-hash-table)))
+    (with-mocks ((write-map (lambda (port value size) #t)))
+		(test-assert "fixed map min" (fixed-map? (packed-header (make-rnd-hash-table 0))))
+		(test-assert "fixed map max" (fixed-map? (packed-header (make-rnd-hash-table fixed_map_limit))))
+		(test-map-limit 'map16 (+ 1 fixed_map_limit) map16_limit)
+		(test-map-limit 'map32 (+ 1 map16_limit) map32_limit)
+		(test-container-out-of-limit hash-table-size map32_limit (make-hash-table))))
   ) ;end limits test
 
 (test-exit)
