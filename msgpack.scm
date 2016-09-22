@@ -31,7 +31,10 @@
          pack-uint pack-sint
          pack-float pack-double
          pack-str pack-bin pack-array pack-map pack-ext
-         unpack)
+         unpack
+         extension? make-extension
+         extension-type extension-data
+         extension-type-set! extension-data-set!)
         (import scheme chicken data-structures extras foreign)
         (require-library srfi-69 byte-blob numbers)
         (include "msgpack-imple.scm")

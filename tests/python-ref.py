@@ -32,4 +32,4 @@ append_assert([], "'#()")
 append_assert([10, True, ["hi"]], """'#(10 #t #("hi"))""")
 append_assert(
     msgpack.ExtType(42, 'a'.encode('utf8')),
-    """`(ext 42 ,(string->byte-blob "a"))""")
+    """(make-extension 42 (string->byte-blob "a"))""")

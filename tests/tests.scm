@@ -130,16 +130,16 @@
       (pack/unpack-test "bin32" (make-byte-blob (expt 2 17)))))
 
   (test-group "ext"
-    (test-error "invalid ext type" (packs `(ext 200 ,(make-byte-blob 1)) pack-ext))
-    (pack/unpack-test "fixext1"   `(ext 1 ,(make-byte-blob 1)))
-    (pack/unpack-test "fixext2"   `(ext 1 ,(make-byte-blob 2)))
-    (pack/unpack-test "fixext4"   `(ext 1 ,(make-byte-blob 4)))
-    (pack/unpack-test "fixext8"   `(ext 1 ,(make-byte-blob 8)))
-    (pack/unpack-test "fixext16"  `(ext 1 ,(make-byte-blob 16)))
-    (pack/unpack-test "ext8"      `(ext 1 ,(make-byte-blob 17)))
-    (pack/unpack-test "ext16"     `(ext 1 ,(make-byte-blob raw16_limit)))
+    (test-error "invalid ext type" (packs (make-extension 200 (make-byte-blob 1)) pack-ext))
+    (pack/unpack-test "fixext1"  (make-extension 1 (make-byte-blob 1)))
+    (pack/unpack-test "fixext2"  (make-extension 1 (make-byte-blob 2)))
+    (pack/unpack-test "fixext4"  (make-extension 1 (make-byte-blob 4)))
+    (pack/unpack-test "fixext8"  (make-extension 1 (make-byte-blob 8)))
+    (pack/unpack-test "fixext16" (make-extension 1 (make-byte-blob 16)))
+    (pack/unpack-test "ext8"     (make-extension 1 (make-byte-blob 17)))
+    (pack/unpack-test "ext16"    (make-extension 1 (make-byte-blob raw16_limit)))
     (if (eq? fast/full 'full)
-      (pack/unpack-test "ext32"   `(ext 1 ,(make-byte-blob (add1 raw16_limit))))))
+      (pack/unpack-test "ext32"  (make-extension 1 (make-byte-blob (add1 raw16_limit))))))
 
   (test-group "array"
     (test-error "invalid: number" (packs -1 pack-array))

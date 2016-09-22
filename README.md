@@ -44,21 +44,19 @@ Unpack procedures:
 Extension
 ---------
 
-A extension type is simply a three element list (header type data):
+Extension is record defined as:
 
-- header: 'ext symbol
+```
 - type: integer from 0 to 127
 - data: a byte-blob
 
-```
-(list 'ext TYPE DATA)
+(define-record extension type data)
 ```
 
 Example:
 
-
 ```scheme
-(list 'ext 1 ,(string->byte-blob "hi"))
+(make-extension 10 (string->byte-blob "hi"))
 ```
 
 

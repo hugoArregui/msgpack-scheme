@@ -84,6 +84,19 @@
                     (fixext8  . #xd7)
                     (fixext16 . #xd8)))
 
+(define-record extension type data)
+
+(define make-extension
+  (let ((old-make-extension make-extension))
+    (lambda (type data)
+      (if (or (not (integer? type))
+              (< type 0)
+              (> type 127))
+        (error (format "invalid type ~A, it should be a number between 0 and 127" type)))
+      (if (not (byte-blob? data))
+        (error (format "invalid data ~A, it should be a byte-blob" data)))
+      (old-make-extension type data))))
+
 (define constant-repr-map (alist->hash-table constants))
 
 (define repr-constant-map
@@ -420,26 +433,23 @@
            (lambda (port size mapper)
              (let* ((type (read-sint port 1))
                     (data (read-raw port size)))
-               (mapper `(ext ,type ,data)))))
+               (mapper (make-extension type data)))))
          (pack (lambda (port value)
-                 (match value
-                        (('ext type data)
-                         (assert (integer? type))
-                         (assert (byte-blob? data))
-                         (if (or (< type 0)
-                                 (> type 127))
-                           (error (format "invalid type ~A, it should be a number between 0 and 127" type)))
-                         (let ((size (byte-blob-length data)))
-                           (cond
-                             ((<= size 1)           (lowrite port 'fixext1  type data #f 1))
-                             ((<= size 2)           (lowrite port 'fixext2  type data #f 2))
-                             ((<= size 4)           (lowrite port 'fixext4  type data #f 4))
-                             ((<= size 8)           (lowrite port 'fixext8  type data #f 8))
-                             ((<= size 16)          (lowrite port 'fixext16 type data #f 16))
-                             ((<= size raw8_limit)  (lowrite port 'ext8     type data 1  size))
-                             ((<= size raw16_limit) (lowrite port 'ext16    type data 2  size))
-                             ((<= size raw32_limit) (lowrite port 'ext32    type data 4  size))
-                             (#t                    (out-of-limit-error 'ext value)))))))))
+                 (if (not (extension? value))
+                   (error 'badInput "cannot pack value as extension " value))
+                 (let* ((type (extension-type value))
+                        (data (extension-data value))
+                        (size (byte-blob-length data)))
+                   (cond
+                     ((<= size 1)           (lowrite port 'fixext1  type data #f 1))
+                     ((<= size 2)           (lowrite port 'fixext2  type data #f 2))
+                     ((<= size 4)           (lowrite port 'fixext4  type data #f 4))
+                     ((<= size 8)           (lowrite port 'fixext8  type data #f 8))
+                     ((<= size 16)          (lowrite port 'fixext16 type data #f 16))
+                     ((<= size raw8_limit)  (lowrite port 'ext8     type data 1  size))
+                     ((<= size raw16_limit) (lowrite port 'ext16    type data 2  size))
+                     ((<= size raw32_limit) (lowrite port 'ext32    type data 4  size))
+                     (#t                    (out-of-limit-error 'ext value)))))))
     (match-lambda*
       (('unpack 'fixext1)  (lambda (port mapper) (read-ext port 1 mapper)))
       (('unpack 'fixext2)  (lambda (port mapper) (read-ext port 2 mapper)))
@@ -477,12 +487,10 @@
            (pack-bin port value))
           ((string? value)
            (pack-str port value))
+          ((extension? value)
+           (pack-ext port value))
           ((list? value)
-           (match value
-                  (('ext type data)
-                   (pack-ext port value))
-                  (else
-                   (pack-array port (list->vector value)))))
+           (pack-array port (list->vector value)))
           ((vector? value)
            (pack-array port value))
           ((hash-table? value)
