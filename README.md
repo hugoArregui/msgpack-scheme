@@ -1,7 +1,7 @@
-MessagePack for Scheme
-======================
+MessagePack implementation for CHICKEN scheme
+=============================================
 
-An implementation of [MessagePack](http://msgpack.org/) for Scheme.
+An implementation of [MessagePack](http://msgpack.org/) for [CHICKEN scheme](https://www.call-cc.org/).
 
 API Specification
 -----------------
