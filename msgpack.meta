@@ -1,10 +1,6 @@
-(
-(license "BSD")
-
-(category parsing)
-
-(needs byte-blob numbers blob-utils bind matchable)
-
-(author "Hugo Arregui")
-(synopsis "MessagePack implementation for scheme")
-(test-depends test random-bsd byte-blob numbers))
+((license "BSD")
+ (category parsing)
+ (needs byte-blob numbers blob-utils bind matchable)
+ (author "Hugo Arregui")
+ (synopsis "MessagePack implementation for CHICKEN")
+ (test-depends test random-bsd byte-blob numbers))
